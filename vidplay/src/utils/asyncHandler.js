@@ -1,18 +1,27 @@
-// const asyncHandler=(fn)=>async(req,res,next)=>{
+const asyncHandler = (requestHandler) => {
+    return (req, res, next) => {
+        Promise.resolve(requestHandler(req, res, next)).catch((err) => next(err))
+    }
+}
+
+
+export { asyncHandler }
+
+
+
+
+// const asyncHandler = () => {}
+// const asyncHandler = (func) => () => {}
+// const asyncHandler = (func) => async () => {}
+
+
+// const asyncHandler = (fn) => async (req, res, next) => {
 //     try {
-//         await fn(req,res,next);
-        
+//         await fn(req, res, next)
 //     } catch (error) {
-//         res.send(error.code||500).json({success:false,
-//             message:error.message||'Internal Server Error'});
+//         res.status(err.code || 500).json({
+//             success: false,
+//             message: err.message
+//         })
 //     }
 // }
-
-const asyncHandler = (requestHandler)=>{
-    (req,res,next)=>{
-        Promise.resolve(requestHandler(req,res,next)).
-        catch((err)=> next(err))
-}
-}
-
-export default asyncHandler;
