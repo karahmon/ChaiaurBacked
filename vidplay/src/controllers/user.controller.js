@@ -20,7 +20,7 @@ const generateAccessAndRefereshTokens = async(userId) =>{
 
 
     } catch (error) {
-        throw new ApiError(500, "Something went wrong while generating referesh and access token")
+        throw new apiError(500, "Something went wrong while generating referesh and access token")
     }
 }
 
@@ -108,7 +108,7 @@ const loginUser = asyncHandler(async (req, res) => {
     // send success response
 
     const {email,username,password}=req.body
-    if(!username || !email){
+    if(!(username || email)){
         throw new apiError(400, "Provide either username or email")
     }
    const user = await User.findOne({$or:[{username},{email}]})
@@ -147,4 +147,37 @@ const logoutUser = asyncHandler(async (req, res) => {
     .clearCookie("refreshToken",cookieOptions)
     .json(new apiResponse(200,{},"User logged out successfully"))
 })
-export {registerUser,loginUser,logoutUser};
+const refreshAccessToken = asyncHandler(async(req,res)=>{
+const incomingRefreshToken= req.cookies.refreshToken|| req.body.refreshToken
+ if(!incomingRefreshToken){
+        throw new apiError(401,"unauthorized request")
+    }
+    try {
+       const decodedToken= jwt.verify(incomingRefreshToken,process.env.REFRESH_TOKEN_SECRET)
+       const user = await User.findById(decodedToken?._id)
+       if(!user){
+        throw new apiError(401,"Invalid Refresh Token")
+    }
+    if(user?.refreshToken!==incomingRefreshToken){
+        throw new apiError(401,"Refresh Token is expired/used")
+    }
+    const cookieOptions = {
+        httpOnly: true,
+        secure: true
+    }
+     const{accessToken,newRefreshToken}= await generateAccessAndRefereshTokens(user._id);
+    
+     return res
+     .status(200)
+     .cookie("accessToken",accessToken,cookieOptions)
+     .cookie("refreshToken",newRefreshToken,cookieOptions)
+     .json(new apiResponse(
+            200,
+            {accessToken,refreshToken:newRefreshToken},
+            "Access Token Refreshed Successfully"
+            ))
+} catch (error) {
+    throw new apiError(401,error?.message||"Invalid Refresh Token")
+}
+})
+export {registerUser,loginUser,logoutUser,refreshAccessToken};  
