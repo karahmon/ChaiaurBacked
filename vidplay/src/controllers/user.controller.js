@@ -1,7 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import {apiError} from "../utils/apiError.js"
 import { User} from "../models/user.model.js"
-import {cloudinary, uploadOnCloudinary} from "../utils/cloudinary.js"
+import {cloudinary, uploadOnCloudinary,deleteOnCloudinary} from "../utils/cloudinary.js"
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
@@ -209,6 +209,10 @@ const updateUserAvatar = asyncHandler(async(req,res)=>{
     const avatarLocalPath = req.file?.path;
     if (!avatarLocalPath) {
         throw new apiError(400, "Avatar file is required")
+    }
+    const removeAvatar = await deleteOnCloudinary(req.user?.avatar)
+    if(!removeAvatar){
+        throw new apiError(400,"Failed to Remove Avatar from Cloudinary")
     }
     const avatar = await uploadOnCloudinary(avatarLocalPath)
     if (!avatar) {
