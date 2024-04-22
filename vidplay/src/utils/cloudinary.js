@@ -1,6 +1,9 @@
 import {v2 as cloudinary} from 'cloudinary';
 import fs from 'fs';
-
+import { apiResponse } from './apiResponse.js';
+import { type } from 'os';
+import { apiError } from './apiError.js';
+import extractPublicId from 'cloudinary-build-url'
           
 cloudinary.config({ 
   cloud_name:(process.env.CLOUDINARY_CLOUD_NAME), 
@@ -24,16 +27,15 @@ const uploadOnCloudinary = async (localFilePath) => {
         
     }
 }; 
-const deleteOnCloudinary = async (url) => {
+const deleteOnCloudinary = async (avatarUrl) => {
   try {
-      if(!url) return null;
-      //delete file on cloudinary
-    const deleteOnCloudinary = await cloudinary.uploader.destroy(cloudinary.url,{resource_type: "auto"})
-       return deleteOnCloudinary; 
+      if(!avatarUrl) return apiError(400, "Avatar file is required");
+      const publicId = extractPublicId(avatarUrl);
+      const response = await cloudinary.uploader.destroy(publicId,{invalidate:true });      
+      return new apiResponse(200, "File Deleted Successfully",response);
 
   } catch (error) {
-      console.log("Error in Removing File",error)
-      return null;
+      return new apiError(400, "Error in Deleting File",error);
       
   }
 };

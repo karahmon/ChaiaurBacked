@@ -15,6 +15,6 @@ router.route('/login').post(loginUser)
 //secured routes
 router.route('/logout').post(verifyJWT, logoutUser)
 router.route('/refresh-token').post(refreshAccessToken)
-router.route('/update-avatar').post(upload.fields({name:"avatar",maxCount:1}),updateUserAvatar)
+router.route('/update-avatar').post(verifyJWT,upload.fields([{name:"avatar",maxCount:1}]),updateUserAvatar)
 
 export default router;

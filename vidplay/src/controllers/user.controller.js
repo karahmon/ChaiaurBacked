@@ -194,7 +194,7 @@ const changeCurrentPassword= asyncHandler(async(req,res)=>{
     return res.status(200).json(new apiResponse(200,{},"Password changed successfully"))
 })
 const getCurrentUser = asyncHandler(async(req,res)=>{
-   res.status(200).json(new apiResponse(200,req.user,"User details fetched successfully"))
+   res.status(200).json(new apiResponse(200,req.User,"User details fetched successfully"))
 })
 const updateUserProfile = asyncHandler(async(req,res)=>{
     const{fullName,email} = req.body
@@ -205,23 +205,37 @@ const updateUserProfile = asyncHandler(async(req,res)=>{
     .select("-password -refreshToken")
     return res.status(200).json(new apiResponse(200,user,"User profile updated successfully"))
 })
-const updateUserAvatar = asyncHandler(async(req,res)=>{
-    const avatarLocalPath = req.file?.path;
+const updateUserAvatar = asyncHandler(async (req, res) => {
+    const avatarLocalPath = req.files?.avatar[0]?.path;
     if (!avatarLocalPath) {
-        throw new apiError(400, "Avatar file is required")
+        throw new apiError(400, "Avatar file is required");
     }
-    const removeAvatar = await deleteOnCloudinary(req.user?.avatar)
-    if(!removeAvatar){
-        throw new apiError(400,"Failed to Remove Avatar from Cloudinary")
+
+    let user = await User.findById(req.user?._id)
+    const avatarUrl = user?.avatar;
+    
+    if (!avatarUrl) {
+        throw new apiError(400, "Avatar URL is missing in user object");
     }
-    const avatar = await uploadOnCloudinary(avatarLocalPath)
-    if (!avatar) {
-        throw new apiError(400, "Avatar file is required")
+
+   
+    const newAvatar = await uploadOnCloudinary(avatarLocalPath);
+    if (!newAvatar) {
+        throw new apiError(400, "Failed to upload new avatar to Cloudinary");
     }
-    const user = await User.findByIdAndUpdate(req.user?._id,{$set:{avatar:avatar.url}},{new:true})
-    .select("-password -refreshToken")
-    return res.status(200).json(new apiResponse(200,user,"User avatar updated successfully"))
-})
+
+    const removeAvatar = await deleteOnCloudinary(avatarUrl);
+    if (!removeAvatar) {
+        throw new apiError(400, "Failed to remove avatar from Cloudinary");
+    }
+         user = await User.findByIdAndUpdate(
+        req.User?._id,
+        { $set: { avatar: newAvatar.url } },
+        { new: true }
+    ).select("-password -refreshToken");
+
+    return res.status(200).json(new apiResponse(200, User, "User avatar updated successfully"));
+});
 const updateCoverImage = asyncHandler(async (req,res)=>{
     const coverImageLocalPath = req.file?.path;
     if(!coverImageLocalPath){
