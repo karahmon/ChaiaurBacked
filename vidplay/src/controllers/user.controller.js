@@ -5,6 +5,7 @@ import {cloudinary, uploadOnCloudinary,deleteOnCloudinary} from "../utils/cloudi
 import { apiResponse } from "../utils/apiResponse.js";
 import jwt from "jsonwebtoken"
 import mongoose from "mongoose";
+import { extractPublicId } from "cloudinary-build-url";
 
 
 const generateAccessAndRefereshTokens = async(userId) =>{
@@ -211,41 +212,62 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new apiError(400, "Avatar file is required");
     }
 
-    let user = await User.findById(req.user?._id)
-    const avatarUrl = user?.avatar;
+    let userId = await User.findById(req.user?._id)
+    const avatarUrl = extractPublicId(userId?.avatar);
     
     if (!avatarUrl) {
         throw new apiError(400, "Avatar URL is missing in user object");
     }
 
    
-    const newAvatar = await uploadOnCloudinary(avatarLocalPath);
-    if (!newAvatar) {
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    if (!avatar) {
         throw new apiError(400, "Failed to upload new avatar to Cloudinary");
     }
+
 
     const removeAvatar = await deleteOnCloudinary(avatarUrl);
     if (!removeAvatar) {
         throw new apiError(400, "Failed to remove avatar from Cloudinary");
     }
-         user = await User.findByIdAndUpdate(
-        req.User?._id,
-        { $set: { avatar: newAvatar.url } },
-        { new: true }
-    ).select("-password -refreshToken");
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                avatar: avatar.url
+            }
+        },
+        {new: true}
+    ).select("-password")
 
-    return res.status(200).json(new apiResponse(200, User, "User avatar updated successfully"));
-});
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, user, "Avatar image updated successfully")
+    )
+})
 const updateCoverImage = asyncHandler(async (req,res)=>{
     const coverImageLocalPath = req.file?.path;
     if(!coverImageLocalPath){
         throw new apiError(400,"coverImage is not Uploaded");
     }
+    let user = await User.findById(req.user?._id)
+    const coverImageUrl = extractPublicId(user?.coverImage);
+    
+    if (!coverImageUrl) {
+        throw new apiError(400, "Cover Image URL is missing in user object");
+    }
+
     const coverImage = await uploadOnCloudinary(coverImageLocalPath);
     if(!coverImageLocalPath){
         throw new apiError(400,"Failed to Upload on cloudinary");
     }
-    const user = await User.findByIdAndUpdate(req.user?._id,{$set:{coverImage:coverImage.url}},{new:true})
+    const removeCoverImage = await deleteOnCloudinary(coverImageUrl);
+    if (!removeCoverImage) {
+        throw new apiError(400, "Failed to remove Cover Image from Cloudinary");
+    }
+
+    user = await User.findByIdAndUpdate(req.user?._id,{$set:{coverImage:coverImage.url}},{new:true})
     .select("-password, -refreshToken")
     return res.status(200).json(new apiResponse(200,user,"Cover Image updated successfully"))
 })
