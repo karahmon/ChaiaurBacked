@@ -247,12 +247,12 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     )
 })
 const updateCoverImage = asyncHandler(async (req,res)=>{
-    const coverImageLocalPath = req.file?.path;
+    const coverImageLocalPath = req.files?.coverImage[0]?.path;
     if(!coverImageLocalPath){
         throw new apiError(400,"coverImage is not Uploaded");
     }
-    let user = await User.findById(req.user?._id)
-    const coverImageUrl = extractPublicId(user?.coverImage);
+    let findUser = await User.findById(req.user?._id)
+    const coverImageUrl = extractPublicId(findUser?.coverImage);
     
     if (!coverImageUrl) {
         throw new apiError(400, "Cover Image URL is missing in user object");
@@ -267,8 +267,48 @@ const updateCoverImage = asyncHandler(async (req,res)=>{
         throw new apiError(400, "Failed to remove Cover Image from Cloudinary");
     }
 
-    user = await User.findByIdAndUpdate(req.user?._id,{$set:{coverImage:coverImage.url}},{new:true})
-    .select("-password, -refreshToken")
-    return res.status(200).json(new apiResponse(200,user,"Cover Image updated successfully"))
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                coverImage: coverImage.url
+            }
+        },
+        {new: true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new apiResponse(200, user, "Cover image updated successfully")
+    )
 })
-export {registerUser,loginUser,logoutUser,refreshAccessToken,changeCurrentPassword,getCurrentUser,updateUserProfile,updateUserAvatar,updateCoverImage};  
+const getUserChannelProfile = asyncHandler(async(req,res)=>{
+const {username}=req.params
+ if(!username?.trim){
+        throw new apiError(400,"Username is required")
+    }
+ const channel = await User.aggregate([{
+    $match:{username:username?.toLowerCase()}
+
+ },{
+    $lookup:{from:Subscription?.toLowerCase(),localField:"_id",foreignField:"channel",as:"subscribers"}
+ },
+ {
+    $lookup:{from:Subscription?.toLowerCase(),localField:"_id",foreignField:"subscribers",as:"subscribedTo"}
+ },
+ {
+    $add:{totalSubscribers:{$size:"$subscribers"},totalSubscribedTo:{$size:"$subscribedTo"},isSubscribed:{$cond:{if:{$in:[req.user?._id,"subscribers.subscriber"]},
+    then:true,
+    else:false
+}}}
+ },{
+    $project:{fullName:1,username:1,subscribers:1,subscribedTo:1,isSubscribed:1,avatar:1,coverImage:1,email:1}
+ }
+])
+if(!channel?.length){
+    throw new apiError(404,"Channel not found")
+}
+return res.status(200).json(new apiResponse(200,channel[0],"Channel Profile Fetched Successfully"))
+})
+export {registerUser,loginUser,logoutUser,refreshAccessToken,changeCurrentPassword,getCurrentUser,updateUserProfile,updateUserAvatar,updateCoverImage,getUserChannelProfile};  
