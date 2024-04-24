@@ -137,7 +137,7 @@ const cookieOptions = {
 
 })
 const logoutUser = asyncHandler(async (req, res) => {
-   await User.findByIdAndUpdate(req.user._id,{$set:{refreshToken:undefined}},{new:true})
+   await User.findByIdAndUpdate(req.user._id,{$unset:{refreshToken:1}},{new:true})
    const cookieOptions = {
     httpOnly: true,
     secure: true
